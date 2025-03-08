@@ -1,1 +1,199 @@
+#include <stdio.h>
+#include <stdlib.h>
 
+struct agm {
+    int id;         
+    int at;         
+    int bt;         
+    int ct;         
+    int wt;         
+    int tt;         
+    int priority;   
+    int executed;   
+    int rt;         
+};
+
+void fcfs(struct agm p[], int n) {
+    int tot_tt = 0, tot_wt = 0;
+
+    p[0].wt = 0;
+    p[0].ct = p[0].at + p[0].bt;
+    p[0].tt = p[0].ct - p[0].at;
+
+    tot_tt += p[0].tt;
+    tot_wt += p[0].wt;
+
+    for (int i = 1; i < n; i++) {
+        p[i].ct = p[i - 1].ct + p[i].bt;
+        p[i].tt = p[i].ct - p[i].at;
+        p[i].wt = p[i].tt - p[i].bt;
+
+        tot_tt += p[i].tt;
+        tot_wt += p[i].wt;
+    }
+
+    printf("PID\tArrival Time\tBurst Time\tWaiting Time\tTurnaround Time\tCompletion Time\n");
+    for (int i = 0; i < n; i++) {
+        printf("%d\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", p[i].id, p[i].at, p[i].bt, p[i].wt, p[i].tt, p[i].ct);
+    }
+
+    printf("Total Turnaround Time: %d\n", tot_tt);
+    printf("Average Turnaround Time: %.2f\n", (float)tot_tt / n);
+    printf("Total Waiting Time: %d\n", tot_wt);
+    printf("Average Waiting Time: %.2f\n", (float)tot_wt / n);
+}
+
+void sjf(struct agm p[], int n) {
+    int tot_tt = 0, tot_wt = 0, tym = 0;
+
+    for (int i = 0; i < n; i++) {
+        p[i].executed = 0;
+    }
+
+    for (int i = 0; i < n; i++) {
+        int min_bt = 1e9, index = -1;
+        for (int j = 0; j < n; j++) {
+            if (!p[j].executed && p[j].at <= tym && p[j].bt < min_bt) {
+                min_bt = p[j].bt;
+                index = j;
+            }
+        }
+
+        if (index != -1) {
+            p[index].wt = tym - p[index].at;
+            p[index].ct = tym + p[index].bt;
+            p[index].tt = p[index].ct - p[index].at;
+            p[index].executed = 1;
+
+            tot_tt += p[index].tt;
+            tot_wt += p[index].wt;
+            tym = p[index].ct;
+        }
+    }
+
+    printf("PID\tArrival Time\tBurst Time\tWaiting Time\tTurnaround Time\tCompletion Time\n");
+    for (int i = 0; i < n; i++) {
+        printf("%d\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", p[i].id, p[i].at, p[i].bt, p[i].wt, p[i].tt, p[i].ct);
+    }
+
+    printf("Total Turnaround Time: %d\n", tot_tt);
+    printf("Average Turnaround Time: %.2f\n", (float)tot_tt / n);
+    printf("Total Waiting Time: %d\n", tot_wt);
+    printf("Average Waiting Time: %.2f\n", (float)tot_wt / n);
+}
+
+void priority_scheduling(struct agm p[], int n) {
+    int tot_tt = 0, tot_wt = 0;
+
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (p[j].priority > p[j + 1].priority || 
+                (p[j].priority == p[j + 1].priority && p[j].at > p[j + 1].at)) {
+                struct agm temp = p[j];
+                p[j] = p[j + 1];
+                p[j + 1] = temp;
+            }
+        }
+    }
+
+    int current_time = p[0].at;
+    for (int i = 0; i < n; i++) {
+        if (current_time < p[i].at) current_time = p[i].at;
+
+        p[i].ct = current_time + p[i].bt;
+        p[i].tt = p[i].ct - p[i].at;
+        p[i].wt = p[i].tt - p[i].bt;
+
+        tot_tt += p[i].tt;
+        tot_wt += p[i].wt;
+        current_time = p[i].ct;
+    }
+
+    printf("PID\tArrival Time\tBurst Time\tPriority\tWaiting Time\tTurnaround Time\tCompletion Time\n");
+    for (int i = 0; i < n; i++) {
+        printf("%d\t%d\t\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", p[i].id, p[i].at, p[i].bt, p[i].priority, p[i].wt, p[i].tt, p[i].ct);
+    }
+
+    printf("Total Turnaround Time: %d\n", tot_tt);
+    printf("Average Turnaround Time: %.2f\n", (float)tot_tt / n);
+    printf("Total Waiting Time: %d\n", tot_wt);
+    printf("Average Waiting Time: %.2f\n", (float)tot_wt / n);
+}
+
+void round_robin(struct agm p[], int n, int quantum) {
+    int tot_tt = 0, tot_wt = 0, completed = 0, current_time = 0;
+
+    for (int i = 0; i < n; i++) {
+        p[i].rt = p[i].bt;
+    }
+
+    while (completed < n) {
+        for (int i = 0; i < n; i++) {
+            if (p[i].at <= current_time && p[i].rt > 0) {
+                if (p[i].rt > quantum) {
+                    current_time += quantum;
+                    p[i].rt -= quantum;
+                } else {
+                    current_time += p[i].rt;
+                    p[i].rt = 0;
+                    p[i].ct = current_time;
+                    p[i].tt = p[i].ct - p[i].at;
+                    p[i].wt = p[i].tt - p[i].bt;
+
+                    tot_tt += p[i].tt;
+                    tot_wt += p[i].wt;
+                    completed++;
+                }
+            }
+        }
+    }
+
+    printf("PID\tArrival Time\tBurst Time\tWaiting Time\tTurnaround Time\tCompletion Time\n");
+    for (int i = 0; i < n; i++) {
+        printf("%d\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", p[i].id, p[i].at, p[i].bt, p[i].wt, p[i].tt, p[i].ct);
+    }
+
+    printf("Total Turnaround Time: %d\n", tot_tt);
+    printf("Average Turnaround Time: %.2f\n", (float)tot_tt / n);
+    printf("Total Waiting Time: %d\n", tot_wt);
+    printf("Average Waiting Time: %.2f\n", (float)tot_wt / n);
+}
+
+int main() {
+    int n, choice, quantum;
+    struct agm p[10];
+
+    printf("Enter the number of processes: ");
+    scanf("%d", &n);
+
+    for (int i = 0; i < n; i++) {
+        printf("Enter PID, Arrival Time, and Burst Time of process %d: ", i + 1);
+        scanf("%d %d %d", &p[i].id, &p[i].at, &p[i].bt);
+    }
+
+    printf("Select Scheduling Algorithm:\n");
+    printf("1. FCFS\n2. SJF\n3. Priority Scheduling\n4. Round Robin\n");
+    scanf("%d", &choice);
+
+    if (choice == 3) {
+        for (int i = 0; i < n; i++) {
+            printf("Enter Priority for process %d: ", i + 1);
+            scanf("%d", &p[i].priority);
+        }
+    }
+
+    if (choice == 4) {
+        printf("Enter Time Quantum: ");
+        scanf("%d", &quantum);
+    }
+
+    switch (choice) {
+        case 1: fcfs(p, n); break;
+        case 2: sjf(p, n); break;
+        case 3: priority_scheduling(p, n); break;
+        case 4: round_robin(p, n, quantum); break;
+        default: printf("Invalid choice!\n");
+    }
+
+    return 0;
+}
